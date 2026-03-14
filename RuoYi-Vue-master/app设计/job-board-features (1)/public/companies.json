@@ -1,0 +1,142 @@
+[
+  {
+    "company_name": "字节跳动",
+    "industry": "IT/互联网",
+    "company_size": "10000人以上",
+    "company_type": "私企",
+    "address": "北京市海淀区"
+  },
+  {
+    "company_name": "阿里巴巴",
+    "industry": "IT/互联网",
+    "company_size": "10000人以上",
+    "company_type": "私企",
+    "address": "杭州市余杭区"
+  },
+  {
+    "company_name": "腾讯",
+    "industry": "IT/互联网",
+    "company_size": "10000人以上",
+    "company_type": "私企",
+    "address": "深圳市南山区"
+  },
+  {
+    "company_name": "中金公司",
+    "industry": "金融",
+    "company_size": "5000-10000人",
+    "company_type": "国企",
+    "address": "上海市浦东新区"
+  },
+  {
+    "company_name": "百度",
+    "industry": "IT/互联网",
+    "company_size": "10000人以上",
+    "company_type": "私企",
+    "address": "北京市海淀区"
+  },
+  {
+    "company_name": "华为",
+    "industry": "IT/互联网",
+    "company_size": "10000人以上",
+    "company_type": "私企",
+    "address": "深圳市龙岗区"
+  },
+  {
+    "company_name": "美团",
+    "industry": "IT/互联网",
+    "company_size": "10000人以上",
+    "company_type": "私企",
+    "address": "北京市朝阳区"
+  },
+  {
+    "company_name": "网易",
+    "industry": "IT/互联网",
+    "company_size": "10000人以上",
+    "company_type": "私企",
+    "address": "杭州市西湖区"
+  },
+  {
+    "company_name": "京东",
+    "industry": "IT/互联网",
+    "company_size": "10000人以上",
+    "company_type": "私企",
+    "address": "北京市朝阳区"
+  },
+  {
+    "company_name": "小米",
+    "industry": "IT/互联网",
+    "company_size": "10000人以上",
+    "company_type": "私企",
+    "address": "北京市海淀区"
+  },
+  {
+    "company_name": "拼多多",
+    "industry": "IT/互联网",
+    "company_size": "10000人以上",
+    "company_type": "私企",
+    "address": "上海市长宁区"
+  },
+  {
+    "company_name": "滴滴",
+    "industry": "IT/互联网",
+    "company_size": "10000人以上",
+    "company_type": "私企",
+    "address": "北京市海淀区"
+  },
+  {
+    "company_name": "顺丰",
+    "industry": "物流",
+    "company_size": "10000人以上",
+    "company_type": "私企",
+    "address": "深圳市南山区"
+  },
+  {
+    "company_name": "工商银行",
+    "industry": "金融",
+    "company_size": "10000人以上",
+    "company_type": "国企",
+    "address": "北京市西城区"
+  },
+  {
+    "company_name": "建设银行",
+    "industry": "金融",
+    "company_size": "10000人以上",
+    "company_type": "国企",
+    "address": "北京市西城区"
+  },
+  {
+    "company_name": "中国移动",
+    "industry": "通信",
+    "company_size": "10000人以上",
+    "company_type": "国企",
+    "address": "北京市西城区"
+  },
+  {
+    "company_name": "中国电信",
+    "industry": "通信",
+    "company_size": "10000人以上",
+    "company_type": "国企",
+    "address": "北京市西城区"
+  },
+  {
+    "company_name": "中国联通",
+    "industry": "通信",
+    "company_size": "10000人以上",
+    "company_type": "国企",
+    "address": "北京市西城区"
+  },
+  {
+    "company_name": "万科",
+    "industry": "房地产",
+    "company_size": "10000人以上",
+    "company_type": "私企",
+    "address": "深圳市盐田区"
+  },
+  {
+    "company_name": "碧桂园",
+    "industry": "房地产",
+    "company_size": "10000人以上",
+    "company_type": "私企",
+    "address": "佛山市顺德区"
+  }
+]
