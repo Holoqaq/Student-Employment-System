@@ -7,6 +7,9 @@ import {
   GraduationCap,
   Download,
   BarChart3,
+  BriefcaseIcon,
+  Building2,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +33,8 @@ import {
   salaryByMajor,
   salaryByEducation,
 } from "@/lib/mock-data";
+import { jobApi } from "@/lib/api";
+import { useState, useEffect } from "react";
 
 const PIE_COLORS = [
   "hsl(217, 91%, 50%)",
@@ -40,7 +45,7 @@ const PIE_COLORS = [
   "hsl(220, 10%, 70%)",
 ];
 
-const stats = [
+const employmentStats = [
   {
     label: "总就业率",
     value: "92.3%",
@@ -88,6 +93,75 @@ export default function AdminPage() {
 }
 
 function AdminContent() {
+  const [jobStats, setJobStats] = useState({
+    totalJobs: 0,
+    activeJobs: 0,
+    totalApplicants: 0,
+    totalInterviews: 0,
+    industryStats: [],
+    cityStats: []
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // 获取岗位统计数据
+  const fetchJobStats = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await jobApi.getJobStats();
+      setJobStats(response);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '获取岗位统计数据失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 初始化时获取数据
+  useEffect(() => {
+    fetchJobStats();
+  }, []);
+
+  const jobStatsItems = [
+    {
+      label: "总岗位数",
+      value: jobStats.totalJobs,
+      change: "+12",
+      icon: Building2,
+      color: "text-primary",
+      bg: "bg-primary/10",
+      ringColor: "ring-primary/20",
+    },
+    {
+      label: "启用中岗位",
+      value: jobStats.activeJobs,
+      change: "+8",
+      icon: BriefcaseIcon,
+      color: "text-emerald-600",
+      bg: "bg-emerald-500/10",
+      ringColor: "ring-emerald-500/20",
+    },
+    {
+      label: "总投递数",
+      value: jobStats.totalApplicants,
+      change: "+23",
+      icon: Users,
+      color: "text-amber-600",
+      bg: "bg-amber-500/10",
+      ringColor: "ring-amber-500/20",
+    },
+    {
+      label: "总面试数",
+      value: jobStats.totalInterviews,
+      change: "+15",
+      icon: TrendingUp,
+      color: "text-blue-600",
+      bg: "bg-blue-500/10",
+      ringColor: "ring-blue-500/20",
+    },
+  ];
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8">
       <div className="mb-6 flex items-center justify-between">
@@ -112,7 +186,36 @@ function AdminContent() {
 
       {/* Stats grid */}
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => {
+        {employmentStats.map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <Card key={stat.label} className="border-transparent shadow-sm">
+              <CardContent className="flex items-center gap-4 p-5">
+                <div
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ring-2 ${stat.bg} ${stat.ringColor}`}
+                >
+                  <Icon className={`h-6 w-6 ${stat.color}`} />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{stat.label}</p>
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-2xl font-bold text-foreground">
+                      {stat.value}
+                    </p>
+                    <span className="rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-xs font-semibold text-emerald-600">
+                      {stat.change}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Job stats */}
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {jobStatsItems.map((stat) => {
           const Icon = stat.icon;
           return (
             <Card key={stat.label} className="border-transparent shadow-sm">

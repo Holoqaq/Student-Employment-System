@@ -79,12 +79,12 @@ function ApplicationsContent() {
     setError(null);
     try {
       const response = await applicationApi.getApplications();
-      // 暂时使用mock数据，等后端API就绪后切换
-      setApplications(mockApplications);
+      // 使用实际的API返回数据
+      setApplications(response.records);
     } catch (err) {
-      setError("获取投递记录失败，使用模拟数据");
-      // 失败时使用mock数据
-      setApplications(mockApplications);
+      setError("获取投递记录失败");
+      // 失败时使用空数组
+      setApplications([]);
     } finally {
       setLoading(false);
     }

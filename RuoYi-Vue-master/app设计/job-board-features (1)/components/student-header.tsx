@@ -30,7 +30,8 @@ const navItems = [
 
 export function StudentHeader() {
   const pathname = usePathname();
-  const { logout, user } = useAuth();
+  const auth = useAuth();
+  const { logout, user } = auth || { logout: async () => {}, user: null };
   const [showLogout, setShowLogout] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 

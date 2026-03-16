@@ -12,7 +12,8 @@ interface AuthRequiredProps {
 
 export const AuthRequired: React.FC<AuthRequiredProps> = ({ children, roles }) => {
   const router = useRouter();
-  const { user, loading, isAuthenticated } = useAuth();
+  const auth = useAuth();
+  const { user, loading, isAuthenticated } = auth || { user: null, loading: true, isAuthenticated: false };
 
   if (loading) {
     return (

@@ -1,5 +1,7 @@
 // API服务层
 
+import { mockJobs } from './mock-data';
+
 // 硬编码数据（来自 D:\学习\大四\毕设备份\毕设\data-crawling\output）
 const jobsData = [
   {
@@ -265,10 +267,10 @@ const jobsData = [
 ];
 
 // 生成更多测试数据，确保至少有10000条
-for (let i = 20; i < 10000; i++) {
+for (let i = jobsData.length; i < 10000; i++) {
   const jobTitles = ["算法工程师", "前端开发工程师", "后端开发工程师", "产品经理", "UI设计师", "数据分析师", "测试工程师", "运维工程师", "销售经理", "市场专员"];
   const companies = ["腾讯", "阿里巴巴", "字节跳动", "百度", "美团", "京东", "小米", "华为", "网易", "拼多多"];
-  const cities = ["南京", "北京", "上海", "深圳", "杭州", "广州", "成都", "武汉", "西安", "重庆"];
+  const cities = ["北京", "上海", "杭州", "南京", "深圳", "广州", "成都", "武汉", "西安", "重庆"];
   const educations = ["大专", "本科", "硕士研究生", "博士研究生"];
   const categories = ["技术研发", "产品管理", "设计", "市场营销", "数据分析", "其他"];
 
@@ -460,24 +462,52 @@ export const jobApi = {
     page?: number;
     size?: number;
     city?: string;
+    cities?: string[];
     industry?: string;
     education?: string;
     keyword?: string;
+    salaryMin?: number;
+    salaryMax?: number;
+    companyType?: string;
   }) => {
     // 模拟网络延迟
     await new Promise(resolve => setTimeout(resolve, 100));
 
+    // 从localStorage获取岗位（仅在客户端）
+    let jobs = [];
+    if (typeof window !== 'undefined') {
+      const jobsJson = localStorage.getItem('jobs');
+      jobs = jobsJson ? JSON.parse(jobsJson) : [];
+    }
+
+    // 如果没有本地岗位，使用jobsData（数据库数据）
+    if (jobs.length === 0) {
+      jobs = jobsData;
+    }
+
+    // 确保至少有一些数据（仅作为最后的备份）
+    if (jobs.length === 0) {
+      jobs = jobsData;
+    }
+
     // 复制原始数据以避免修改
-    let filteredJobs = [...jobsData];
+    let filteredJobs = [...jobs];
 
     // 应用筛选条件
     if (params) {
-      if (params.city) {
+      // 城市筛选（支持多城市）
+      if (params.cities && params.cities.length > 0) {
+        filteredJobs = filteredJobs.filter(job => params.cities!.includes(job.city));
+      } else if (params.city) {
         filteredJobs = filteredJobs.filter(job => job.city === params.city);
       }
-      if (params.education) {
+
+      // 学历筛选
+      if (params.education && params.education !== "all") {
         filteredJobs = filteredJobs.filter(job => job.education === params.education);
       }
+
+      // 关键词搜索
       if (params.keyword) {
         const keyword = params.keyword.toLowerCase();
         filteredJobs = filteredJobs.filter(job =>
@@ -485,14 +515,40 @@ export const jobApi = {
           job.company_name.toLowerCase().includes(keyword)
         );
       }
-      // 注意：industry 字段在 jobsData 中不存在，需要通过 company_name 关联 companiesData
-      if (params.industry) {
+
+      // 行业筛选
+      if (params.industry && params.industry !== "all") {
         const companiesInIndustry = companiesData.filter(
           company => company.industry === params.industry
         ).map(company => company.company_name);
+        // 确保即使公司不在companiesData中也能显示
+        if (companiesInIndustry.length > 0) {
+          filteredJobs = filteredJobs.filter(job =>
+            companiesInIndustry.includes(job.company_name)
+          );
+        }
+      }
+
+      // 薪资范围筛选（转换为元为单位）
+      if (params.salaryMin !== undefined && params.salaryMax !== undefined) {
+        const minSalary = params.salaryMin * 1000; // 转换为元
+        const maxSalary = params.salaryMax * 1000; // 转换为元
         filteredJobs = filteredJobs.filter(job =>
-          companiesInIndustry.includes(job.company_name)
+          job.salary_min >= minSalary && job.salary_max <= maxSalary
         );
+      }
+
+      // 单位性质筛选
+      if (params.companyType && params.companyType !== "all") {
+        const companiesWithType = companiesData.filter(
+          company => company.company_type === params.companyType
+        ).map(company => company.company_name);
+        // 确保即使公司不在companiesData中也能显示
+        if (companiesWithType.length > 0) {
+          filteredJobs = filteredJobs.filter(job =>
+            companiesWithType.includes(job.company_name)
+          );
+        }
       }
     }
 
@@ -506,26 +562,31 @@ export const jobApi = {
     // 构造返回数据结构
     return {
       records: paginatedJobs.map((job, index) => {
-        // 找到该工作在原始jobsData中的索引
-        const originalIndex = jobsData.findIndex(j =>
-          j.job_title === job.job_title &&
-          j.company_name === job.company_name &&
-          j.city === job.city
-        );
-        return {
-          id: `${originalIndex + 1}`, // 使用原始索引作为ID
-          title: job.job_title,
-          salaryMin: job.salary_min,
-          salaryMax: job.salary_max,
-          city: job.city,
-          education: job.education,
-          workExperience: job.work_experience,
-          jobCategory: job.job_category,
-          company: job.company_name,
-          postDate: job.post_date,
-          matchScore: Math.floor(Math.random() * 30) + 70, // 生成随机匹配度
-          industry: companiesData.find(c => c.company_name === job.company_name)?.industry || 'IT/互联网'
-        };
+        // 检查job对象的结构
+        if (job.job_title) {
+          // 从jobsData来的格式
+          return {
+            id: `${index + 1}`, // 使用索引作为ID
+            title: job.job_title,
+            salaryMin: Math.round(job.salary_min / 1000), // 转换为 K 为单位
+            salaryMax: Math.round(job.salary_max / 1000), // 转换为 K 为单位
+            city: job.city,
+            education: job.education,
+            workExperience: job.work_experience,
+            jobCategory: job.job_category,
+            company: job.company_name,
+            postDate: job.post_date,
+            matchScore: Math.floor(Math.random() * 30) + 70, // 生成随机匹配度
+            industry: companiesData.find(c => c.company_name === job.company_name)?.industry || 'IT/互联网'
+          };
+        } else {
+          // 从localStorage来的格式
+          return {
+            ...job,
+            salaryMin: job.salaryMin,
+            salaryMax: job.salaryMax
+          };
+        }
       }),
       total: filteredJobs.length,
       size: size,
@@ -604,36 +665,323 @@ export const jobApi = {
     // 模拟返回未收藏
     return { isFavorited: false };
   },
+
+  // 创建岗位
+  createJob: async (jobData: {
+    title: string;
+    company: string;
+    city: string;
+    industry: string;
+    salaryMin: number;
+    salaryMax: number;
+    education: string;
+    responsibilities: string;
+    requirements: string[];
+    employerId: string;
+  }) => {
+    // 模拟网络延迟
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // 从localStorage获取现有岗位（仅在客户端）
+    let existingJobs = [];
+    if (typeof window !== 'undefined') {
+      const jobsJson = localStorage.getItem('jobs');
+      existingJobs = jobsJson ? JSON.parse(jobsJson) : [];
+    }
+
+    // 创建新岗位
+    const newJob = {
+      id: Date.now().toString(),
+      title: jobData.title,
+      company: jobData.company,
+      city: jobData.city,
+      industry: jobData.industry,
+      salaryMin: jobData.salaryMin,
+      salaryMax: jobData.salaryMax,
+      education: jobData.education,
+      responsibilities: [jobData.responsibilities],
+      requirements: jobData.requirements,
+      employerId: jobData.employerId,
+      status: 'active',
+      applicants: 0,
+      interviews: 0,
+      postedAt: new Date().toISOString().split('T')[0],
+      matchScore: Math.floor(Math.random() * 30) + 70
+    };
+
+    // 添加到岗位列表（仅在客户端）
+    if (typeof window !== 'undefined') {
+      existingJobs.push(newJob);
+      localStorage.setItem('jobs', JSON.stringify(existingJobs));
+    }
+
+    return {
+      success: true,
+      job: newJob
+    };
+  },
+
+  // 获取企业发布的岗位
+  getEmployerJobs: async (employerId: string) => {
+    // 模拟网络延迟
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // 从localStorage获取岗位（仅在客户端）
+    let jobs = [];
+    if (typeof window !== 'undefined') {
+      const jobsJson = localStorage.getItem('jobs');
+      jobs = jobsJson ? JSON.parse(jobsJson) : [];
+    }
+
+    // 过滤出该企业的岗位
+    const employerJobs = jobs.filter((job: any) => job.employerId === employerId);
+
+    return {
+      records: employerJobs,
+      total: employerJobs.length
+    };
+  },
+
+  // 更新岗位状态
+  updateJobStatus: async (jobId: string, status: 'active' | 'inactive') => {
+    // 模拟网络延迟
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // 从localStorage获取岗位（仅在客户端）
+    let jobs = [];
+    if (typeof window !== 'undefined') {
+      const jobsJson = localStorage.getItem('jobs');
+      jobs = jobsJson ? JSON.parse(jobsJson) : [];
+
+      // 更新状态
+      const updatedJobs = jobs.map((job: any) =>
+        job.id === jobId ? { ...job, status } : job
+      );
+
+      localStorage.setItem('jobs', JSON.stringify(updatedJobs));
+    }
+
+    return {
+      success: true
+    };
+  },
+
+  // 获取所有岗位（用于学生端）
+  getAllJobs: async (params?: {
+    page?: number;
+    size?: number;
+    city?: string;
+    industry?: string;
+    education?: string;
+    keyword?: string;
+  }) => {
+    // 模拟网络延迟
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // 从localStorage获取用户发布的岗位（仅在客户端）
+    let userJobs = [];
+    if (typeof window !== 'undefined') {
+      const jobsJson = localStorage.getItem('jobs');
+      userJobs = jobsJson ? JSON.parse(jobsJson) : [];
+    }
+
+    // 从爬取的数据生成岗位数据
+    const crawledJobs = jobsData.map((job, index) => ({
+      id: `crawled-${index + 1}`, // 为爬取的数据添加前缀，避免ID冲突
+      title: job.job_title,
+      company: job.company_name,
+      industry: companiesData.find(c => c.company_name === job.company_name)?.industry || 'IT/互联网',
+      companySize: '10000人以上',
+      companyType: '私企',
+      city: job.city,
+      salaryMin: Math.round(job.salary_min / 1000), // 转换为 K 为单位
+      salaryMax: Math.round(job.salary_max / 1000), // 转换为 K 为单位
+      education: job.education,
+      matchScore: Math.floor(Math.random() * 30) + 70,
+      responsibilities: [job.responsibilities],
+      requirements: [job.requirements],
+      recommendReasons: [
+        '行业发展前景好',
+        '薪资待遇优渥',
+        '公司实力雄厚',
+        '符合个人职业规划'
+      ],
+      applicants: Math.floor(Math.random() * 200),
+      interviews: Math.floor(Math.random() * 30),
+      status: 'active',
+      postedAt: job.post_date
+    }));
+
+    // 合并用户发布的岗位和爬取的岗位
+    let jobs = [...crawledJobs, ...userJobs];
+
+    // 确保所有岗位都有status字段
+    jobs = jobs.map((job: any) => ({
+      ...job,
+      status: job.status || 'active'
+    }));
+
+    // 应用筛选条件
+    if (params) {
+      if (params.city) {
+        jobs = jobs.filter((job: any) => job.city === params.city);
+      }
+      if (params.industry) {
+        jobs = jobs.filter((job: any) => job.industry === params.industry);
+      }
+      if (params.education) {
+        jobs = jobs.filter((job: any) => job.education === params.education);
+      }
+      if (params.keyword) {
+        const keyword = params.keyword.toLowerCase();
+        jobs = jobs.filter((job: any) =>
+          job.title.toLowerCase().includes(keyword) ||
+          job.company.toLowerCase().includes(keyword)
+        );
+      }
+    }
+
+    // 应用分页
+    const page = params?.page || 1;
+    const size = params?.size || 10;
+    const startIndex = (page - 1) * size;
+    const endIndex = startIndex + size;
+    const paginatedJobs = jobs.slice(startIndex, endIndex);
+
+    return {
+      records: paginatedJobs,
+      total: jobs.length,
+      size: size,
+      current: page,
+      pages: Math.ceil(jobs.length / size)
+    };
+  },
+
+  // 获取岗位统计数据（用于管理员端）
+  getJobStats: async () => {
+    // 模拟网络延迟
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // 从localStorage获取岗位（仅在客户端）
+    let jobs = [];
+    if (typeof window !== 'undefined') {
+      const jobsJson = localStorage.getItem('jobs');
+      jobs = jobsJson ? JSON.parse(jobsJson) : [];
+    }
+
+    // 计算统计数据
+    const totalJobs = jobs.length;
+    const activeJobs = jobs.filter((job: any) => job.status === 'active').length;
+    const totalApplicants = jobs.reduce((sum: number, job: any) => sum + (job.applicants || 0), 0);
+    const totalInterviews = jobs.reduce((sum: number, job: any) => sum + (job.interviews || 0), 0);
+
+    // 按行业统计
+    const industryStats = jobs.reduce((acc: any, job: any) => {
+      const industry = job.industry || '其他';
+      if (!acc[industry]) {
+        acc[industry] = 0;
+      }
+      acc[industry]++;
+      return acc;
+    }, {});
+
+    // 按城市统计
+    const cityStats = jobs.reduce((acc: any, job: any) => {
+      const city = job.city || '其他';
+      if (!acc[city]) {
+        acc[city] = 0;
+      }
+      acc[city]++;
+      return acc;
+    }, {});
+
+    return {
+      totalJobs,
+      activeJobs,
+      totalApplicants,
+      totalInterviews,
+      industryStats: Object.entries(industryStats).map(([name, value]) => ({ name, value })),
+      cityStats: Object.entries(cityStats).map(([name, value]) => ({ name, value }))
+    };
+  },
 };
 
 // 申请相关API
 export const applicationApi = {
-  // 获取申请列表（模拟）
+  // 获取申请列表
   getApplications: async () => {
     // 模拟网络延迟
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    // 模拟返回空列表
+    // 从localStorage获取申请记录（仅在客户端）
+    let applications = [];
+    if (typeof window !== 'undefined') {
+      const applicationsJson = localStorage.getItem('applications');
+      applications = applicationsJson ? JSON.parse(applicationsJson) : [];
+    }
+
     return {
-      records: []
+      records: applications
     };
   },
 
-  // 提交申请（模拟）
+  // 提交申请
   applyJob: async (jobId: string) => {
     // 模拟网络延迟
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    // 模拟成功响应
+    // 获取岗位详情
+    const jobDetail = await jobApi.getJobDetail(jobId);
+
+    // 从localStorage获取现有申请记录（仅在客户端）
+    let applications = [];
+    if (typeof window !== 'undefined') {
+      const applicationsJson = localStorage.getItem('applications');
+      applications = applicationsJson ? JSON.parse(applicationsJson) : [];
+
+      // 检查是否已经投递过
+      const existingApplication = applications.find((app: any) => app.jobId === jobId);
+      if (existingApplication) {
+        return { success: false, message: '已经投递过该岗位' };
+      }
+
+      // 创建新的申请记录
+      const newApplication = {
+        id: `a${Date.now()}`,
+        jobId: jobId,
+        jobTitle: jobDetail.title,
+        company: jobDetail.company,
+        appliedAt: new Date().toISOString().split('T')[0],
+        status: 'pending' as 'pending' | 'interview' | 'passed' | 'rejected'
+      };
+
+      // 添加到申请记录列表
+      applications.push(newApplication);
+      localStorage.setItem('applications', JSON.stringify(applications));
+    }
+
     return { success: true };
   },
 
-  // 获取申请状态（模拟）
+  // 获取申请状态
   getApplicationStatus: async (jobId: string) => {
     // 模拟网络延迟
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    // 模拟返回未申请
+    // 从localStorage获取申请记录（仅在客户端）
+    let applications = [];
+    if (typeof window !== 'undefined') {
+      const applicationsJson = localStorage.getItem('applications');
+      applications = applicationsJson ? JSON.parse(applicationsJson) : [];
+
+      // 查找申请记录
+      const application = applications.find((app: any) => app.jobId === jobId);
+      if (application) {
+        return { status: application.status };
+      }
+    }
+
+    // 未申请
     return { status: '未申请' };
   },
 };
@@ -758,13 +1106,18 @@ export const dictApi = {
 export const authApi = {
   // 获取注册用户列表
   getRegisteredUsers: () => {
-    const usersJson = localStorage.getItem('registeredUsers');
-    return usersJson ? JSON.parse(usersJson) : [];
+    if (typeof window !== 'undefined') {
+      const usersJson = localStorage.getItem('registeredUsers');
+      return usersJson ? JSON.parse(usersJson) : [];
+    }
+    return [];
   },
 
   // 保存注册用户列表
   saveRegisteredUsers: (users: any[]) => {
-    localStorage.setItem('registeredUsers', JSON.stringify(users));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('registeredUsers', JSON.stringify(users));
+    }
   },
 
   // 用户登录
@@ -777,6 +1130,15 @@ export const authApi = {
 
     // 首先检查硬编码的账号
     if (credentials.username === 'admin' && credentials.password === '123456') {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('token', 'mock-token-' + Date.now());
+        localStorage.setItem('user', JSON.stringify({
+          id: '1',
+          username: 'admin',
+          name: '管理员',
+          role: 'admin'
+        }));
+      }
       return {
         success: true,
         token: 'mock-token-' + Date.now(),
@@ -788,6 +1150,15 @@ export const authApi = {
         }
       };
     } else if (credentials.username === 'student' && credentials.password === '123456') {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('token', 'mock-token-' + Date.now());
+        localStorage.setItem('user', JSON.stringify({
+          id: '2',
+          username: 'student',
+          name: '学生用户',
+          role: 'student'
+        }));
+      }
       return {
         success: true,
         token: 'mock-token-' + Date.now(),
@@ -799,6 +1170,15 @@ export const authApi = {
         }
       };
     } else if (credentials.username === 'employer' && credentials.password === '123456') {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('token', 'mock-token-' + Date.now());
+        localStorage.setItem('user', JSON.stringify({
+          id: '3',
+          username: 'employer',
+          name: '企业用户',
+          role: 'employer'
+        }));
+      }
       return {
         success: true,
         token: 'mock-token-' + Date.now(),
@@ -818,6 +1198,15 @@ export const authApi = {
     );
 
     if (user) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('token', 'mock-token-' + Date.now());
+        localStorage.setItem('user', JSON.stringify({
+          id: user.id,
+          username: user.username,
+          name: user.name,
+          role: user.role
+        }));
+      }
       return {
         success: true,
         token: 'mock-token-' + Date.now(),
@@ -893,10 +1282,12 @@ export const authApi = {
     // 模拟网络延迟
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    // 从localStorage获取用户信息
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      return JSON.parse(storedUser);
+    // 从localStorage获取用户信息（仅在客户端）
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        return JSON.parse(storedUser);
+      }
     }
 
     // 模拟返回默认用户信息
@@ -912,6 +1303,12 @@ export const authApi = {
   logout: async () => {
     // 模拟网络延迟
     await new Promise(resolve => setTimeout(resolve, 100));
+
+    // 清除本地存储（仅在客户端）
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
 
     return { success: true };
   }

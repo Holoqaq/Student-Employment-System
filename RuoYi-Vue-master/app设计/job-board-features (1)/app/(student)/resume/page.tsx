@@ -68,7 +68,7 @@ function ResumeContent() {
   const [tempSkills, setTempSkills] = useState(profile.skills);
   const [newSkill, setNewSkill] = useState('');
   const [resumeFile, setResumeFile] = useState<File | null>(null);
-  const [uploadedResume, setUploadedResume] = useState<string | null>(null);
+  const [uploadedResume, setUploadedResume] = useState<string | null>(profile.resumeUrl || null);
 
   // 当profile变化时，保存到localStorage
   useEffect(() => {
@@ -133,7 +133,9 @@ function ResumeContent() {
         setResumeFile(file);
         // 模拟上传成功
         setTimeout(() => {
-          setUploadedResume(file.name);
+          const resumeUrl = file.name; // 实际应用中应该是服务器返回的文件URL
+          setUploadedResume(resumeUrl);
+          setProfile((p) => ({ ...p, resumeUrl }));
           setResumeFile(null);
         }, 1000);
       }
@@ -142,6 +144,7 @@ function ResumeContent() {
 
   const deleteResume = () => {
     setUploadedResume(null);
+    setProfile((p) => ({ ...p, resumeUrl: null }));
   };
 
   const toggleCity = (city: string) => {

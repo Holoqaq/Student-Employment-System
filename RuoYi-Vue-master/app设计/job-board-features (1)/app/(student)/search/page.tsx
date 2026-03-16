@@ -50,22 +50,35 @@ export default function SearchPage() {
     setLoading(true);
     setError(null);
     try {
-      // 由于 API 不支持多城市筛选，这里只使用第一个选中的城市
-      const selectedCity = selectedCities.length > 0 ? selectedCities[0] : "all";
-      
-      const response = await jobApi.getJobs({
+      console.log('Fetching jobs with params:', {
         page: currentPage,
         size: PAGE_SIZE,
-        city: selectedCity === "all" ? undefined : selectedCity,
+        city: selectedCities.length > 0 ? selectedCities[0] : undefined,
         industry: selectedIndustry === "all" ? undefined : selectedIndustry,
         education: selectedEducation === "all" ? undefined : selectedEducation,
         keyword: searchQuery,
       });
-      
-      setJobs(response.records);
+
+      // 使用getAllJobs方法，与主页保持一致
+      const response = await jobApi.getAllJobs({
+        page: currentPage,
+        size: PAGE_SIZE,
+        city: selectedCities.length > 0 ? selectedCities[0] : undefined,
+        industry: selectedIndustry === "all" ? undefined : selectedIndustry,
+        education: selectedEducation === "all" ? undefined : selectedEducation,
+        keyword: searchQuery,
+      });
+
+      console.log('API response:', response);
+
+      // 薪资已经在 API 中转换为 K 为单位，不需要再次转换
+      const jobsWithConvertedSalary = response.records;
+
+      setJobs(jobsWithConvertedSalary);
       setTotal(response.total);
     } catch (err) {
-      setError("获取岗位数据失败");
+      console.error('Error fetching jobs:', err);
+      setError("获取岗位数据失败: " + (err instanceof Error ? err.message : String(err)));
       setJobs([]);
       setTotal(0);
     } finally {
@@ -76,7 +89,7 @@ export default function SearchPage() {
   // 筛选条件变化时获取数据
   useEffect(() => {
     fetchJobs();
-  }, [currentPage, searchQuery, selectedIndustry, selectedCities, selectedEducation, selectedCompanyType]);
+  }, [currentPage, searchQuery, selectedIndustry, selectedCities, selectedEducation]);
 
   // 由于我们使用API进行分页和筛选，直接使用API返回的数据
   const filteredJobs = jobs;
@@ -240,41 +253,41 @@ export default function SearchPage() {
                   >
                     上一页
                   </Button>
-                  
+
                   {/* 生成分页按钮 */}
                   {(() => {
                     const totalPages = Math.ceil(total / PAGE_SIZE);
                     const pagesToShow = [];
-                    
+
                     // 总是显示第一页
                     if (totalPages > 0) {
                       pagesToShow.push(1);
                     }
-                    
+
                     // 显示当前页附近的页码
                     const startPage = Math.max(2, currentPage - 1);
                     const endPage = Math.min(totalPages - 1, currentPage + 1);
-                    
+
                     // 如果第一页和当前页附近有间隔，添加省略号
                     if (startPage > 2) {
                       pagesToShow.push('...');
                     }
-                    
+
                     // 添加当前页附近的页码
                     for (let i = startPage; i <= endPage; i++) {
                       pagesToShow.push(i);
                     }
-                    
+
                     // 如果当前页附近和最后一页有间隔，添加省略号
                     if (endPage < totalPages - 1) {
                       pagesToShow.push('...');
                     }
-                    
+
                     // 总是显示最后一页
                     if (totalPages > 1) {
                       pagesToShow.push(totalPages);
                     }
-                    
+
                     return pagesToShow.map((page) => {
                       if (page === '...') {
                         return (
@@ -296,7 +309,7 @@ export default function SearchPage() {
                       );
                     });
                   })()}
-                  
+
                   <Button
                     variant="outline"
                     size="sm"
@@ -306,7 +319,7 @@ export default function SearchPage() {
                   >
                     下一页
                   </Button>
-                  
+
                   {/* 页码输入跳转 */}
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">前往</span>

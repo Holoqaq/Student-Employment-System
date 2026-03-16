@@ -2,7 +2,7 @@ import React from "react"
 import type { Metadata, Viewport } from "next";
 
 import "./globals.css";
-import { AuthProvider } from "@/lib/auth-context";
+import { ClientProvider } from "@/components/client-provider";
 
 export const metadata: Metadata = {
   title: "智联校园 - 高校就业推荐平台",
@@ -23,9 +23,9 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body className="font-sans antialiased">
-        <AuthProvider>
+        <ClientProvider>
           {children}
-        </AuthProvider>
+        </ClientProvider>
       </body>
     </html>
   );

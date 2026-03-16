@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, Check, FileText } from "lucide-react";
+import { ArrowLeft, Check, FileText, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/select";
 import { AuthRequired } from "@/components/auth-required";
 import { CITIES, EDUCATION_LEVELS, INDUSTRIES } from "@/lib/mock-data";
+import { jobApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 
 const REQUIREMENTS = [
   "熟练掌握相关技术栈",
@@ -39,13 +41,83 @@ export default function NewJobPage() {
 }
 
 function NewJobContent() {
+  const { user } = useAuth();
   const [selectedRequirements, setSelectedRequirements] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // 表单数据
+  const [formData, setFormData] = useState({
+    title: '',
+    company: '字节跳动科技有限公司',
+    city: '',
+    industry: '',
+    salaryMin: '',
+    salaryMax: '',
+    education: '',
+    responsibilities: ''
+  });
 
   const toggleReq = (req: string) => {
     setSelectedRequirements((prev) =>
       prev.includes(req) ? prev.filter((r) => r !== req) : [...prev, req]
     );
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // 验证表单
+      if (!formData.title || !formData.city || !formData.industry ||
+        !formData.salaryMin || !formData.salaryMax || !formData.education ||
+        !formData.responsibilities) {
+        throw new Error('请填写所有必填字段');
+      }
+
+      if (user?.role !== 'employer') {
+        throw new Error('只有企业用户才能发布岗位');
+      }
+
+      // 调用API创建岗位
+      const response = await jobApi.createJob({
+        title: formData.title,
+        company: formData.company,
+        city: formData.city,
+        industry: formData.industry,
+        salaryMin: parseInt(formData.salaryMin),
+        salaryMax: parseInt(formData.salaryMax),
+        education: formData.education,
+        responsibilities: formData.responsibilities,
+        requirements: selectedRequirements,
+        employerId: user.id
+      });
+
+      if (response.success) {
+        setSubmitted(true);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '发布失败');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (submitted) {
@@ -67,7 +139,20 @@ function NewJobContent() {
                 返回岗位列表
               </Button>
             </Link>
-            <Button className="bg-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/30" onClick={() => setSubmitted(false)}>继续发布</Button>
+            <Button className="bg-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/30" onClick={() => {
+              setSubmitted(false);
+              setFormData({
+                title: '',
+                company: '字节跳动科技有限公司',
+                city: '',
+                industry: '',
+                salaryMin: '',
+                salaryMax: '',
+                education: '',
+                responsibilities: ''
+              });
+              setSelectedRequirements([]);
+            }}>继续发布</Button>
           </div>
         </div>
       </div>
@@ -102,21 +187,38 @@ function NewJobContent() {
           </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-5">
+          {error && (
+            <div className="p-3 bg-red-50 text-red-600 rounded-md">
+              {error}
+            </div>
+          )}
+
           <div className="grid gap-2">
             <Label className="text-sm font-medium">岗位标题</Label>
-            <Input placeholder="例如：前端开发工程师" />
+            <Input
+              name="title"
+              value={formData.title}
+              onChange={handleChange}
+              placeholder="例如：前端开发工程师"
+            />
           </div>
 
           <div className="grid gap-2">
             <Label className="text-sm font-medium">单位名称</Label>
-            <Input value="字节跳动科技有限公司" disabled className="bg-muted" />
+            <Input
+              name="company"
+              value={formData.company}
+              onChange={handleChange}
+              disabled
+              className="bg-muted"
+            />
             <p className="text-xs text-muted-foreground">自动填充当前单位信息</p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label className="text-sm font-medium">工作城市</Label>
-              <Select>
+              <Select onValueChange={(value) => handleSelectChange('city', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="选择城市" />
                 </SelectTrigger>
@@ -131,7 +233,7 @@ function NewJobContent() {
             </div>
             <div className="grid gap-2">
               <Label className="text-sm font-medium">所属行业</Label>
-              <Select>
+              <Select onValueChange={(value) => handleSelectChange('industry', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="选择行业" />
                 </SelectTrigger>
@@ -149,17 +251,29 @@ function NewJobContent() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label className="text-sm font-medium">最低薪资（K/月）</Label>
-              <Input type="number" placeholder="15" />
+              <Input
+                name="salaryMin"
+                type="number"
+                value={formData.salaryMin}
+                onChange={handleChange}
+                placeholder="15"
+              />
             </div>
             <div className="grid gap-2">
               <Label className="text-sm font-medium">最高薪资（K/月）</Label>
-              <Input type="number" placeholder="30" />
+              <Input
+                name="salaryMax"
+                type="number"
+                value={formData.salaryMax}
+                onChange={handleChange}
+                placeholder="30"
+              />
             </div>
           </div>
 
           <div className="grid gap-2">
             <Label className="text-sm font-medium">学历要求</Label>
-            <Select>
+            <Select onValueChange={(value) => handleSelectChange('education', value)}>
               <SelectTrigger className="w-60">
                 <SelectValue placeholder="选择学历要求" />
               </SelectTrigger>
@@ -176,6 +290,9 @@ function NewJobContent() {
           <div className="grid gap-2">
             <Label className="text-sm font-medium">岗位职责</Label>
             <Textarea
+              name="responsibilities"
+              value={formData.responsibilities}
+              onChange={handleChange}
               placeholder="请详细描述岗位职责..."
               className="min-h-32"
             />
@@ -202,9 +319,17 @@ function NewJobContent() {
           <Button
             className="mt-2 w-full rounded-xl bg-emerald-600 shadow-md shadow-emerald-500/20 hover:bg-emerald-700"
             size="lg"
-            onClick={() => setSubmitted(true)}
+            onClick={handleSubmit}
+            disabled={loading}
           >
-            发布岗位
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                发布中...
+              </>
+            ) : (
+              '发布岗位'
+            )}
           </Button>
         </CardContent>
       </Card>

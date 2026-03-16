@@ -43,6 +43,7 @@ export interface UserProfile {
   expectedSalaryMin: number;
   expectedSalaryMax: number;
   jobCategory: string;
+  resumeUrl: string | null;
 }
 
 export const INDUSTRIES = [
@@ -434,6 +435,7 @@ export const mockProfile: UserProfile = {
   expectedSalaryMin: 15,
   expectedSalaryMax: 30,
   jobCategory: "技术研发",
+  resumeUrl: null,
 };
 
 export const employmentTrendData = [

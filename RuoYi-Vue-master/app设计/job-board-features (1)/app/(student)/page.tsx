@@ -30,13 +30,47 @@ import { AuthRequired } from "@/components/auth-required";
 import { jobApi, statsApi, dictApi } from "@/lib/api";
 import { mockJobs, CITIES, INDUSTRIES, EDUCATION_LEVELS } from "@/lib/mock-data";
 
-// 模拟求职意向数据（实际应该从API获取）
-const mockCareerIntentions = {
-  cities: ["北京", "上海", "杭州"],
-  industries: ["IT/互联网", "金融"],
-  salaryMin: 15000,
-  salaryMax: 30000,
-  jobCategory: "技术研发"
+// 从localStorage读取用户的求职意向设置
+const getCareerIntentions = () => {
+  const savedProfile = localStorage.getItem('userProfile');
+  if (savedProfile) {
+    try {
+      const profile = JSON.parse(savedProfile);
+      // 确保返回的数据结构正确，并且有合理的值
+      const cities = Array.isArray(profile.preferredCities) && profile.preferredCities.length > 0
+        ? profile.preferredCities
+        : ["北京", "上海", "杭州"];
+      const industries = Array.isArray(profile.preferredIndustries) && profile.preferredIndustries.length > 0
+        ? profile.preferredIndustries
+        : ["IT/互联网", "金融"];
+      const salaryMin = typeof profile.expectedSalaryMin === 'number' && profile.expectedSalaryMin > 0
+        ? profile.expectedSalaryMin
+        : 15;
+      const salaryMax = typeof profile.expectedSalaryMax === 'number' && profile.expectedSalaryMax > salaryMin
+        ? profile.expectedSalaryMax
+        : 30;
+
+      return {
+        cities: cities,
+        industries: industries,
+        salaryMin: salaryMin, // K为单位
+        salaryMax: salaryMax, // K为单位
+        jobCategory: profile.jobCategory || "技术研发",
+        skills: Array.isArray(profile.skills) ? profile.skills : []
+      };
+    } catch (error) {
+      console.error('解析用户配置失败:', error);
+    }
+  }
+  // 默认值
+  return {
+    cities: ["北京", "上海", "杭州"],
+    industries: ["IT/互联网", "金融"],
+    salaryMin: 15, // K为单位
+    salaryMax: 30, // K为单位
+    jobCategory: "技术研发",
+    skills: []
+  };
 };
 
 const PAGE_SIZE = 30;
@@ -62,7 +96,7 @@ export default function HomePage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await jobApi.getJobs({
+      const response = await jobApi.getAllJobs({
         page: 1,
         size: 10000, // 获取足够多的数据以进行客户端筛选
         city: selectedCity === "all" ? undefined : selectedCity,
@@ -71,28 +105,66 @@ export default function HomePage() {
         keyword: searchQuery,
       });
 
+      // 读取最新的求职意向设置
+      const careerIntentions = getCareerIntentions();
+
       // 根据求职意向进行筛选
       let filteredJobs = response.records.filter(job => {
-        // 城市匹配
-        const cityMatch = mockCareerIntentions.cities.includes(job.city);
-        // 行业匹配
-        const industryMatch = mockCareerIntentions.industries.includes(job.industry);
-        // 薪资匹配
-        const salaryMatch = job.salaryMin >= mockCareerIntentions.salaryMin && job.salaryMax <= mockCareerIntentions.salaryMax;
-        // 职位类别匹配
-        const categoryMatch = job.jobCategory === mockCareerIntentions.jobCategory;
+        // 只显示启用状态的岗位
+        if (job.status !== 'active') return false;
 
-        return cityMatch && industryMatch && salaryMatch && categoryMatch;
+        // 城市匹配
+        const cityMatch = careerIntentions.cities.includes(job.city);
+        // 行业匹配
+        const industryMatch = careerIntentions.industries.includes(job.industry);
+        // 薪资匹配
+        const salaryMatch = job.salaryMin >= careerIntentions.salaryMin && job.salaryMax <= careerIntentions.salaryMax;
+
+        return cityMatch && industryMatch && salaryMatch;
       });
+
+      // 基于技能的匹配和排序
+      if (careerIntentions.skills.length > 0) {
+        filteredJobs = filteredJobs.map(job => {
+          // 计算技能匹配度
+          let skillMatchScore = 0;
+          if (Array.isArray(job.requirements)) {
+            careerIntentions.skills.forEach(skill => {
+              if (job.requirements.some(req => req.includes(skill))) {
+                skillMatchScore += 10;
+              }
+            });
+          }
+
+          return {
+            ...job,
+            finalScore: (job.matchScore || 0) + skillMatchScore
+          };
+        }).sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0));
+      }
 
       // 显示所有筛选后的岗位
       setJobs(filteredJobs);
       setTotal(filteredJobs.length);
     } catch (err) {
       setError("获取岗位数据失败，使用模拟数据");
-      // 失败时使用mock数据
-      setJobs(mockJobs);
-      setTotal(mockJobs.length);
+      // 失败时使用mock数据，并应用相同的筛选条件
+      const careerIntentions = getCareerIntentions();
+      let filteredMockJobs = mockJobs.filter(job => {
+        // 只显示启用状态的岗位
+        if (job.status !== 'active') return false;
+
+        // 城市匹配
+        const cityMatch = careerIntentions.cities.includes(job.city);
+        // 行业匹配
+        const industryMatch = careerIntentions.industries.includes(job.industry);
+        // 薪资匹配
+        const salaryMatch = job.salaryMin >= careerIntentions.salaryMin && job.salaryMax <= careerIntentions.salaryMax;
+
+        return cityMatch && industryMatch && salaryMatch;
+      });
+      setJobs(filteredMockJobs);
+      setTotal(filteredMockJobs.length);
     } finally {
       setLoading(false);
     }
@@ -119,9 +191,26 @@ export default function HomePage() {
 
   // 初始加载和筛选条件变化时获取数据
   useEffect(() => {
-    fetchJobs();
-    fetchStats();
+    // 确保在客户端环境中运行
+    if (typeof window !== 'undefined') {
+      fetchJobs();
+      fetchStats();
+    }
   }, [searchQuery, selectedCity, selectedIndustry, selectedEducation]);
+
+  // 监听localStorage中userProfile的变化
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handleStorageChange = (e: StorageEvent) => {
+        if (e.key === 'userProfile') {
+          fetchJobs();
+        }
+      };
+
+      window.addEventListener('storage', handleStorageChange);
+      return () => window.removeEventListener('storage', handleStorageChange);
+    }
+  }, []);
 
   const filteredJobs = jobs;
 

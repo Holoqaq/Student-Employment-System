@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { employmentTrendData } from "@/lib/mock-data";
-import { jobApi } from "@/lib/api";
+import { jobApi, applicationApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import {
   BarChart,
@@ -54,14 +54,19 @@ export default function JobDetailPage() {
   const [hasApplied, setHasApplied] = useState(false);
   const [applicationSuccess, setApplicationSuccess] = useState(false);
 
-  // 获取岗位详情
+  // 获取岗位详情和投递状态
   useEffect(() => {
     const fetchJobDetail = async () => {
       setLoading(true);
       setError(null);
       try {
+        // 获取岗位详情
         const jobDetail = await jobApi.getJobDetail(id);
         setJob(jobDetail);
+
+        // 检查是否已经投递过
+        const statusResponse = await applicationApi.getApplicationStatus(id);
+        setHasApplied(statusResponse.status !== '未申请');
       } catch (err) {
         setError("获取岗位详情失败");
         console.error("获取岗位详情失败:", err);
@@ -196,27 +201,24 @@ export default function JobDetailPage() {
                   className="gap-2 rounded-xl bg-primary px-6 shadow-md shadow-primary/20"
                   size="lg"
                   disabled={hasApplied}
-                  onClick={() => {
-                    setHasApplied(true);
-                    setApplicationSuccess(true);
+                  onClick={async () => {
+                    try {
+                      const response = await applicationApi.applyJob(job.id);
+                      if (response.success) {
+                        setHasApplied(true);
+                        setApplicationSuccess(true);
 
-                    // 存储投递记录到localStorage
-                    const applications = JSON.parse(localStorage.getItem('applications') || '[]');
-                    const newApplication = {
-                      id: `a${Date.now()}`,
-                      jobId: job.id,
-                      jobTitle: job.title,
-                      company: job.company,
-                      appliedAt: new Date().toISOString(),
-                      status: "pending"
-                    };
-                    applications.push(newApplication);
-                    localStorage.setItem('applications', JSON.stringify(applications));
-
-                    // 3秒后关闭成功提示
-                    setTimeout(() => {
-                      setApplicationSuccess(false);
-                    }, 3000);
+                        // 3秒后关闭成功提示
+                        setTimeout(() => {
+                          setApplicationSuccess(false);
+                        }, 3000);
+                      } else {
+                        alert(response.message || '投递失败');
+                      }
+                    } catch (error) {
+                      console.error('投递失败:', error);
+                      alert('投递失败，请稍后重试');
+                    }
                   }}
                 >
                   {hasApplied ? (
