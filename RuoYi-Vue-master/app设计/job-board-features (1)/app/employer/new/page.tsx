@@ -209,10 +209,8 @@ function NewJobContent() {
               name="company"
               value={formData.company}
               onChange={handleChange}
-              disabled
-              className="bg-muted"
+              placeholder="请输入单位名称"
             />
-            <p className="text-xs text-muted-foreground">自动填充当前单位信息</p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

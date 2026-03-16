@@ -173,15 +173,11 @@ export default function HomePage() {
   // 获取统计数据
   const fetchStats = async () => {
     try {
-      const [todayJobsRes, companyCountRes, employmentRateRes] = await Promise.all([
-        statsApi.getTodayJobs(),
-        statsApi.getCompanyCount(),
-        statsApi.getEmploymentRate(),
-      ]);
+      const todayJobsRes = await statsApi.getTodayJobs();
       setStats({
         todayJobs: todayJobsRes.count,
-        companyCount: companyCountRes.count,
-        employmentRate: employmentRateRes.rate,
+        companyCount: 0,
+        employmentRate: 0,
       });
     } catch (err) {
       // 失败时使用默认数据
@@ -358,7 +354,7 @@ export default function HomePage() {
       </div>
 
       {/* Quick stats */}
-      <div className="mb-8 grid grid-cols-3 gap-4">
+      <div className="mb-8">
         <div className="flex items-center gap-3 rounded-xl bg-card p-4 shadow-sm">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
             <TrendingUp className="h-5 w-5 text-primary" />
@@ -366,24 +362,6 @@ export default function HomePage() {
           <div>
             <p className="text-xs text-muted-foreground">今日新增</p>
             <p className="text-lg font-bold text-foreground">{stats.todayJobs} 个岗位</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 rounded-xl bg-card p-4 shadow-sm">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
-            <Building2 className="h-5 w-5 text-emerald-600" />
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">合作企业</p>
-            <p className="text-lg font-bold text-foreground">{stats.companyCount} 家</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 rounded-xl bg-card p-4 shadow-sm">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10">
-            <Users className="h-5 w-5 text-amber-600" />
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">就业率</p>
-            <p className="text-lg font-bold text-foreground">{stats.employmentRate}%</p>
           </div>
         </div>
       </div>

@@ -56,6 +56,9 @@ export default function SearchPage() {
         city: selectedCities.length > 0 ? selectedCities[0] : undefined,
         industry: selectedIndustry === "all" ? undefined : selectedIndustry,
         education: selectedEducation === "all" ? undefined : selectedEducation,
+        companyType: selectedCompanyType === "all" ? undefined : selectedCompanyType,
+        salaryMin: salaryRange[0],
+        salaryMax: salaryRange[1],
         keyword: searchQuery,
       });
 
@@ -66,6 +69,9 @@ export default function SearchPage() {
         city: selectedCities.length > 0 ? selectedCities[0] : undefined,
         industry: selectedIndustry === "all" ? undefined : selectedIndustry,
         education: selectedEducation === "all" ? undefined : selectedEducation,
+        companyType: selectedCompanyType === "all" ? undefined : selectedCompanyType,
+        salaryMin: salaryRange[0],
+        salaryMax: salaryRange[1],
         keyword: searchQuery,
       });
 
@@ -89,7 +95,7 @@ export default function SearchPage() {
   // 筛选条件变化时获取数据
   useEffect(() => {
     fetchJobs();
-  }, [currentPage, searchQuery, selectedIndustry, selectedCities, selectedEducation]);
+  }, [currentPage, searchQuery, selectedIndustry, selectedCities, selectedEducation, selectedCompanyType, salaryRange]);
 
   // 由于我们使用API进行分页和筛选，直接使用API返回的数据
   const filteredJobs = jobs;

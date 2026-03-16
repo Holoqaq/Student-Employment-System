@@ -118,7 +118,7 @@ export default function JobDetailPage() {
     <div className="mx-auto max-w-5xl px-4 py-6 lg:px-8">
       {/* Back button */}
       <Link
-        href="/"
+        href="/search"
         className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
       >
         <ArrowLeft className="h-4 w-4" />

@@ -600,35 +600,82 @@ export const jobApi = {
     // 模拟网络延迟
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    // 这里简化处理，根据ID索引获取岗位
-    // 实际应用中可能需要更复杂的匹配逻辑
-    const jobIndex = parseInt(id) - 1;
-    const job = jobsData[jobIndex];
+    // 首先从localStorage查找用户创建的岗位
+    let job: any = null;
+    if (typeof window !== 'undefined') {
+      const jobsJson = localStorage.getItem('jobs');
+      if (jobsJson) {
+        const userJobs = JSON.parse(jobsJson);
+        job = userJobs.find((j: any) => j.id === id);
+      }
+    }
 
-    if (!job) {
+    // 如果在localStorage中找到，直接返回
+    if (job) {
+      // 获取公司信息
+      const company = companiesData.find(c => c.company_name === job.company);
+
+      return {
+        id: job.id,
+        title: job.title,
+        salaryMin: job.salaryMin,
+        salaryMax: job.salaryMax,
+        city: job.city,
+        education: job.education,
+        workExperience: job.workExperience || '应届生',
+        jobCategory: job.jobCategory || '技术研发',
+        responsibilities: job.responsibilities || ['负责相关工作'],
+        requirements: job.requirements || ['相关专业'],
+        company: job.company,
+        industry: job.industry || company?.industry || 'IT/互联网',
+        companySize: company?.company_size || '10000人以上',
+        companyType: company?.company_type || '私企',
+        companyAddress: company?.address,
+        postDate: job.postedAt || new Date().toISOString().split('T')[0],
+        matchScore: job.matchScore || Math.floor(Math.random() * 30) + 70,
+        recommendReasons: [
+          '行业发展前景好',
+          '薪资待遇优渥',
+          '公司实力雄厚',
+          '符合个人职业规划'
+        ]
+      };
+    }
+
+    // 处理带前缀的ID格式（如crawled-1）
+    let jobIndex: number;
+    if (id.startsWith('crawled-')) {
+      jobIndex = parseInt(id.replace('crawled-', '')) - 1;
+    } else {
+      jobIndex = parseInt(id) - 1;
+    }
+
+    const crawledJob = jobsData[jobIndex];
+
+    if (!crawledJob) {
       throw new Error('Job not found');
     }
 
     // 获取公司信息
-    const company = companiesData.find(c => c.company_name === job.company_name);
+    const company = companiesData.find(c => c.company_name === crawledJob.company_name);
 
     return {
       id: id,
-      title: job.job_title,
-      salaryMin: job.salary_min,
-      salaryMax: job.salary_max,
-      city: job.city,
-      education: job.education,
-      workExperience: job.work_experience,
-      jobCategory: job.job_category,
-      responsibilities: [job.responsibilities], // 转换为数组格式
-      requirements: [job.requirements], // 转换为数组格式
-      company: job.company_name,
+      title: crawledJob.job_title,
+      salaryMin: crawledJob.salary_min,
+      salaryMax: crawledJob.salary_max,
+      city: crawledJob.city,
+      education: crawledJob.education,
+      workExperience: crawledJob.work_experience,
+      jobCategory: crawledJob.job_category,
+      responsibilities: [crawledJob.responsibilities], // 转换为数组格式
+      requirements: [crawledJob.requirements], // 转换为数组格式
+      company: crawledJob.company_name,
       industry: company?.industry || 'IT/互联网',
       companySize: company?.company_size || '10000人以上',
       companyType: company?.company_type || '私企',
       companyAddress: company?.address,
-      postDate: job.post_date,
+      postDate: crawledJob.post_date,
       matchScore: Math.floor(Math.random() * 30) + 70, // 生成随机匹配度
       recommendReasons: [
         '行业发展前景好',
@@ -766,6 +813,34 @@ export const jobApi = {
     };
   },
 
+  // 删除岗位
+  deleteJob: async (jobId: string) => {
+    // 模拟网络延迟
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // 从localStorage获取岗位（仅在客户端）
+    if (typeof window !== 'undefined') {
+      const jobsJson = localStorage.getItem('jobs');
+      if (jobsJson) {
+        const jobs = JSON.parse(jobsJson);
+        const updatedJobs = jobs.filter((job: any) => job.id !== jobId);
+        localStorage.setItem('jobs', JSON.stringify(updatedJobs));
+
+        // 同时从申请记录中删除相关记录
+        const applicationsJson = localStorage.getItem('applications');
+        if (applicationsJson) {
+          const applications = JSON.parse(applicationsJson);
+          const updatedApplications = applications.filter((app: any) => app.jobId !== jobId);
+          localStorage.setItem('applications', JSON.stringify(updatedApplications));
+        }
+
+        return { success: true };
+      }
+    }
+
+    return { success: false, message: '删除失败' };
+  },
+
   // 获取所有岗位（用于学生端）
   getAllJobs: async (params?: {
     page?: number;
@@ -774,6 +849,9 @@ export const jobApi = {
     industry?: string;
     education?: string;
     keyword?: string;
+    salaryMin?: number;
+    salaryMax?: number;
+    companyType?: string;
   }) => {
     // 模拟网络延迟
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -792,7 +870,7 @@ export const jobApi = {
       company: job.company_name,
       industry: companiesData.find(c => c.company_name === job.company_name)?.industry || 'IT/互联网',
       companySize: '10000人以上',
-      companyType: '私企',
+      companyType: companiesData.find(c => c.company_name === job.company_name)?.company_type || '私企',
       city: job.city,
       salaryMin: Math.round(job.salary_min / 1000), // 转换为 K 为单位
       salaryMax: Math.round(job.salary_max / 1000), // 转换为 K 为单位
@@ -821,6 +899,9 @@ export const jobApi = {
       status: job.status || 'active'
     }));
 
+    // 只返回启用状态的岗位
+    jobs = jobs.filter((job: any) => job.status === 'active');
+
     // 应用筛选条件
     if (params) {
       if (params.city) {
@@ -838,6 +919,16 @@ export const jobApi = {
           job.title.toLowerCase().includes(keyword) ||
           job.company.toLowerCase().includes(keyword)
         );
+      }
+      // 薪资范围筛选
+      if (params.salaryMin !== undefined && params.salaryMax !== undefined) {
+        jobs = jobs.filter((job: any) =>
+          job.salaryMin >= params.salaryMin && job.salaryMax <= params.salaryMax
+        );
+      }
+      // 单位性质筛选
+      if (params.companyType && params.companyType !== "all") {
+        jobs = jobs.filter((job: any) => job.companyType === params.companyType);
       }
     }
 
@@ -958,6 +1049,22 @@ export const applicationApi = {
       // 添加到申请记录列表
       applications.push(newApplication);
       localStorage.setItem('applications', JSON.stringify(applications));
+
+      // 更新岗位的投递人数
+      const jobsJson = localStorage.getItem('jobs');
+      if (jobsJson) {
+        const jobs = JSON.parse(jobsJson);
+        const updatedJobs = jobs.map((job: any) => {
+          if (job.id === jobId) {
+            return {
+              ...job,
+              applicants: (job.applicants || 0) + 1
+            };
+          }
+          return job;
+        });
+        localStorage.setItem('jobs', JSON.stringify(updatedJobs));
+      }
     }
 
     return { success: true };
@@ -983,6 +1090,47 @@ export const applicationApi = {
 
     // 未申请
     return { status: '未申请' };
+  },
+
+  // 取消投递
+  cancelApplication: async (applicationId: string) => {
+    // 模拟网络延迟
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // 从localStorage获取申请记录（仅在客户端）
+    if (typeof window !== 'undefined') {
+      const applicationsJson = localStorage.getItem('applications');
+      if (applicationsJson) {
+        const applications = JSON.parse(applicationsJson);
+        const application = applications.find((app: any) => app.id === applicationId);
+
+        if (application) {
+          // 从申请记录中删除
+          const updatedApplications = applications.filter((app: any) => app.id !== applicationId);
+          localStorage.setItem('applications', JSON.stringify(updatedApplications));
+
+          // 更新岗位的投递人数
+          const jobsJson = localStorage.getItem('jobs');
+          if (jobsJson) {
+            const jobs = JSON.parse(jobsJson);
+            const updatedJobs = jobs.map((job: any) => {
+              if (job.id === application.jobId) {
+                return {
+                  ...job,
+                  applicants: Math.max(0, (job.applicants || 0) - 1)
+                };
+              }
+              return job;
+            });
+            localStorage.setItem('jobs', JSON.stringify(updatedJobs));
+          }
+
+          return { success: true };
+        }
+      }
+    }
+
+    return { success: false, message: '取消投递失败' };
   },
 };
 
@@ -1037,13 +1185,23 @@ export const statsApi = {
     };
   },
 
-  // 获取今日新增岗位数（模拟）
+  // 获取今日新增岗位数（真实计算）
   getTodayJobs: async () => {
     // 模拟网络延迟
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    // 模拟返回随机数
-    return { count: Math.floor(Math.random() * 20) + 1 };
+    // 从localStorage获取岗位并计算今日新增
+    if (typeof window !== 'undefined') {
+      const jobsJson = localStorage.getItem('jobs');
+      if (jobsJson) {
+        const jobs = JSON.parse(jobsJson);
+        const today = new Date().toISOString().split('T')[0];
+        const todayJobs = jobs.filter((job: any) => job.postedAt === today).length;
+        return { count: todayJobs };
+      }
+    }
+
+    return { count: 0 };
   },
 
   // 获取合作企业数（模拟）

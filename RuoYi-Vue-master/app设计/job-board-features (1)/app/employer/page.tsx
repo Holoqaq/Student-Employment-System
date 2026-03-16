@@ -11,6 +11,7 @@ import {
   Pencil,
   TrendingUp,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,8 @@ function EmployerContent() {
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editingJobId, setEditingJobId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<string>('');
 
   // 获取企业岗位
   const fetchJobs = async () => {
@@ -84,6 +87,67 @@ function EmployerContent() {
     }
   };
 
+  // 更新面试人数
+  const updateInterviews = async (id: string, value: string) => {
+    const interviews = parseInt(value);
+    if (isNaN(interviews) || interviews < 0) {
+      alert('请输入有效的面试人数');
+      return;
+    }
+
+    try {
+      // 从localStorage获取岗位（仅在客户端）
+      if (typeof window !== 'undefined') {
+        const jobsJson = localStorage.getItem('jobs');
+        if (jobsJson) {
+          const jobs = JSON.parse(jobsJson);
+          const updatedJobs = jobs.map((job: any) => {
+            if (job.id === id) {
+              return {
+                ...job,
+                interviews: interviews
+              };
+            }
+            return job;
+          });
+          localStorage.setItem('jobs', JSON.stringify(updatedJobs));
+
+          // 更新本地状态
+          setJobs(prev =>
+            prev.map(job =>
+              job.id === id ? { ...job, interviews: interviews } : job
+            )
+          );
+
+          setEditingJobId(null);
+        }
+      }
+    } catch (err) {
+      console.error('更新面试人数失败:', err);
+      alert('更新面试人数失败，请稍后重试');
+    }
+  };
+
+  // 删除岗位
+  const deleteJob = async (id: string) => {
+    if (!confirm('确定要删除这个岗位吗？删除后将无法恢复。')) {
+      return;
+    }
+
+    try {
+      const response = await jobApi.deleteJob(id);
+      if (response.success) {
+        // 从本地状态中删除
+        setJobs(prev => prev.filter(job => job.id !== id));
+      } else {
+        alert(response.message || '删除失败');
+      }
+    } catch (err) {
+      console.error('删除岗位失败:', err);
+      alert('删除岗位失败，请稍后重试');
+    }
+  };
+
   const totalApplicants = jobs.reduce((sum, j) => sum + (j.applicants || 0), 0);
   const totalInterviews = jobs.reduce((sum, j) => sum + (j.interviews || 0), 0);
 
@@ -111,12 +175,9 @@ function EmployerContent() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">总投递人数</p>
-              <div className="flex items-baseline gap-2">
-                <p className="text-2xl font-bold text-foreground">
-                  {totalApplicants}
-                </p>
-                <span className="text-xs font-medium text-emerald-600">+12%</span>
-              </div>
+              <p className="text-2xl font-bold text-foreground">
+                {totalApplicants}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -127,12 +188,9 @@ function EmployerContent() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">面试人数</p>
-              <div className="flex items-baseline gap-2">
-                <p className="text-2xl font-bold text-foreground">
-                  {totalInterviews}
-                </p>
-                <span className="text-xs font-medium text-emerald-600">+8%</span>
-              </div>
+              <p className="text-2xl font-bold text-foreground">
+                {totalInterviews}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -238,7 +296,46 @@ function EmployerContent() {
                         <span className="font-semibold text-foreground">{job.applicants || 0}</span>
                       </TableCell>
                       <TableCell className="text-center">
-                        <span className="font-semibold text-foreground">{job.interviews || 0}</span>
+                        {editingJobId === job.id ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <input
+                              type="number"
+                              min="0"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              className="w-16 px-2 py-1 border rounded text-center"
+                              onBlur={() => updateInterviews(job.id, editValue)}
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                  updateInterviews(job.id, editValue);
+                                }
+                              }}
+                              autoFocus
+                            />
+                            <button
+                              className="p-1 text-primary hover:bg-primary/10 rounded"
+                              onClick={() => updateInterviews(job.id, editValue)}
+                            >
+                              ✓
+                            </button>
+                            <button
+                              className="p-1 text-muted-foreground hover:bg-muted rounded"
+                              onClick={() => setEditingJobId(null)}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <span
+                            className="font-semibold text-foreground cursor-pointer hover:text-primary"
+                            onClick={() => {
+                              setEditingJobId(job.id);
+                              setEditValue((job.interviews || 0).toString());
+                            }}
+                          >
+                            {job.interviews || 0}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge
@@ -277,6 +374,15 @@ function EmployerContent() {
                               编辑
                             </Button>
                           </Link>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 gap-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => deleteJob(job.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            删除
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>

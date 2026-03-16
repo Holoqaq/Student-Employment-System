@@ -90,6 +90,22 @@ function ApplicationsContent() {
     }
   };
 
+  // 取消投递
+  const handleCancelApplication = async (applicationId: string) => {
+    try {
+      const response = await applicationApi.cancelApplication(applicationId);
+      if (response.success) {
+        // 重新获取申请数据
+        await fetchApplications();
+      } else {
+        alert(response.message || '取消投递失败');
+      }
+    } catch (error) {
+      console.error('取消投递失败:', error);
+      alert('取消投递失败，请稍后重试');
+    }
+  };
+
   // 初始加载数据
   useEffect(() => {
     fetchApplications();
@@ -238,6 +254,21 @@ function ApplicationsContent() {
                       >
                         {config.label}
                       </Badge>
+                      {app.status === 'pending' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 rounded-md text-xs text-red-600 border-red-200 hover:bg-red-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm('确定要取消投递吗？')) {
+                              handleCancelApplication(app.id);
+                            }
+                          }}
+                        >
+                          取消投递
+                        </Button>
+                      )}
                       <ChevronRight className="h-4 w-4 text-muted-foreground/40 transition-colors group-hover:text-primary" />
                     </CardContent>
                   </Card>
