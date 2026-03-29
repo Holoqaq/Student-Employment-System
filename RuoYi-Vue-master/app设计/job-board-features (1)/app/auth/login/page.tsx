@@ -30,8 +30,13 @@ export default function LoginPage() {
     try {
       await login(formData.username, formData.password);
       
-      // 登录成功后会自动重定向，这里可以根据需要添加额外逻辑
-      router.push('/');
+      // 登录成功后根据用户角色跳转到对应的页面
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      if (user.role === 'student') {
+        router.push('/');
+      } else if (user.role === 'employer') {
+        router.push('/employer');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '登录失败');
     } finally {
@@ -110,7 +115,6 @@ export default function LoginPage() {
           
           <div className="mt-4 text-center text-sm text-gray-500">
             <p>测试账号：</p>
-            <p>管理员: admin / 123456</p>
             <p>学生: student / 123456</p>
             <p>企业: employer / 123456</p>
           </div>

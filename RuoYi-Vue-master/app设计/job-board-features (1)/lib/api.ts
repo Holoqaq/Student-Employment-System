@@ -1287,27 +1287,7 @@ export const authApi = {
     await new Promise(resolve => setTimeout(resolve, 100));
 
     // 首先检查硬编码的账号
-    if (credentials.username === 'admin' && credentials.password === '123456') {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('token', 'mock-token-' + Date.now());
-        localStorage.setItem('user', JSON.stringify({
-          id: '1',
-          username: 'admin',
-          name: '管理员',
-          role: 'admin'
-        }));
-      }
-      return {
-        success: true,
-        token: 'mock-token-' + Date.now(),
-        user: {
-          id: '1',
-          username: 'admin',
-          name: '管理员',
-          role: 'admin'
-        }
-      };
-    } else if (credentials.username === 'student' && credentials.password === '123456') {
+    if (credentials.username === 'student' && credentials.password === '123456') {
       if (typeof window !== 'undefined') {
         localStorage.setItem('token', 'mock-token-' + Date.now());
         localStorage.setItem('user', JSON.stringify({
@@ -1406,7 +1386,7 @@ export const authApi = {
     }
 
     // 检查是否是保留用户名
-    const reservedUsernames = ['admin', 'student', 'employer'];
+    const reservedUsernames = ['student', 'employer'];
     if (reservedUsernames.includes(userData.username)) {
       throw new Error('该用户名已被系统保留');
     }

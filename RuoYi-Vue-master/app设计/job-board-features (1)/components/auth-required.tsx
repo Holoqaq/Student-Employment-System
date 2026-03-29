@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 interface AuthRequiredProps {
   children: ReactNode;
-  roles?: Array<'admin' | 'student' | 'employer'>;
+  roles?: Array<'student' | 'employer'>;
 }
 
 export const AuthRequired: React.FC<AuthRequiredProps> = ({ children, roles }) => {

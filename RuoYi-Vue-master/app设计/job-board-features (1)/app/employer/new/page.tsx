@@ -92,6 +92,18 @@ function NewJobContent() {
         throw new Error('请填写所有必填字段');
       }
 
+      // 验证薪资
+      const salaryMin = parseInt(formData.salaryMin);
+      const salaryMax = parseInt(formData.salaryMax);
+      
+      if (salaryMin < 0 || salaryMax < 0) {
+        throw new Error('薪资不能为负数');
+      }
+      
+      if (salaryMin > salaryMax) {
+        throw new Error('最低薪资不能高于最高薪资');
+      }
+
       if (user?.role !== 'employer') {
         throw new Error('只有企业用户才能发布岗位');
       }
@@ -255,6 +267,7 @@ function NewJobContent() {
                 value={formData.salaryMin}
                 onChange={handleChange}
                 placeholder="15"
+                min="0"
               />
             </div>
             <div className="grid gap-2">
@@ -265,6 +278,7 @@ function NewJobContent() {
                 value={formData.salaryMax}
                 onChange={handleChange}
                 placeholder="30"
+                min="0"
               />
             </div>
           </div>
